@@ -4,7 +4,10 @@ import Dashboard from './components/Dashboard.jsx';
 import AddEditModal from './components/AddEditModal.jsx';
 import Settings from './components/Settings.jsx';
 import Notifications from './components/Notifications.jsx';
+import SyncPanel from './components/SyncPanel.jsx';
 import Toast from './components/Toast.jsx';
+import { isSupabaseConfigured, supabase } from './sync/supabaseClient.js';
+import { markRecordPending, performSync } from './sync/syncService.js';
 
 const sortBookmarks = (items) =>
   [...items].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -28,13 +31,27 @@ const ensureDefaultLibrary = async () => {
   }
 
   const now = new Date();
+  const remoteId = crypto.randomUUID();
   const id = await db.libraries.add({
     name: DEFAULT_LIBRARY_NAME,
+    remoteId,
+    syncStatus: 'pending',
+    lastSyncedAt: null,
+    deletedAt: null,
     createdAt: now,
     updatedAt: now
   });
 
-  return [{ id, name: DEFAULT_LIBRARY_NAME, createdAt: now, updatedAt: now }];
+  return [{
+    id,
+    name: DEFAULT_LIBRARY_NAME,
+    remoteId,
+    syncStatus: 'pending',
+    lastSyncedAt: null,
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now
+  }];
 };
 
 function App() {
@@ -45,6 +62,10 @@ function App() {
   const [modalBookmark, setModalBookmark] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [session, setSession] = useState(null);
+  const [syncStatus, setSyncStatus] = useState('local-only');
+  const [syncMessage, setSyncMessage] = useState('');
+  const [syncEnabled, setSyncEnabled] = useState(false);
 
   const showToast = useCallback((message, type = 'info') => {
     setToast({ id: crypto.randomUUID(), message, type });
@@ -90,6 +111,122 @@ function App() {
     };
   }, [showToast]);
 
+  useEffect(() => {
+    if (!supabase) {
+      setSyncStatus('local-only');
+      setSyncMessage('Configure Supabase to enable optional sync.');
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        console.error(error);
+        setSyncStatus('sync-error');
+        setSyncMessage('Could not read sync session.');
+        return;
+      }
+
+      setSession(data.session);
+      setSyncEnabled(Boolean(data.session));
+    });
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setSyncEnabled(Boolean(nextSession));
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const refreshLocalData = useCallback(async () => {
+    const [libraryRecords, bookmarkRecords] = await Promise.all([
+      loadLibraries(),
+      db.bookmarks.toArray()
+    ]);
+    setLibraries(sortLibraries(libraryRecords));
+    setBookmarks(sortBookmarks(bookmarkRecords));
+  }, [loadLibraries]);
+
+  const syncNow = useCallback(
+    async ({ askFirst = false } = {}) => {
+      if (!supabase || !session?.user || !syncEnabled) {
+        setSyncStatus('local-only');
+        return;
+      }
+
+      if (askFirst) {
+        const shouldUpload = window.confirm(
+          'Upload your current local BIFROST libraries and bookmarks to this sync account?'
+        );
+
+        if (!shouldUpload) {
+          setSyncEnabled(false);
+          setSyncStatus('local-only');
+          setSyncMessage('Sync paused. Local data stayed on this device.');
+          return false;
+        }
+
+        localStorage.setItem(`bifrost-sync-confirmed-${session.user.id}`, 'yes');
+      }
+
+      setSyncStatus(navigator.onLine ? 'syncing' : 'offline-pending');
+
+      try {
+        const result = await performSync(session.user);
+        setSyncStatus(result.status);
+        setSyncMessage(
+          result.status === 'synced'
+            ? `Synced ${new Date(result.syncedAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}`
+            : 'Offline changes pending.'
+        );
+        await refreshLocalData();
+      } catch (error) {
+        console.error(error);
+        setSyncStatus('sync-error');
+        setSyncMessage(error.message || 'Sync failed.');
+      }
+
+      return true;
+    },
+    [refreshLocalData, session, syncEnabled]
+  );
+
+  useEffect(() => {
+    if (!session?.user || !syncEnabled) {
+      return;
+    }
+
+    const optInKey = `bifrost-sync-confirmed-${session.user.id}`;
+    const askFirst = localStorage.getItem(optInKey) !== 'yes';
+
+    syncNow({ askFirst });
+  }, [session, syncEnabled, syncNow]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      if (session?.user && syncEnabled) {
+        syncNow();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [session, syncEnabled, syncNow]);
+
   const openAddModal = () => {
     setModalBookmark(null);
     setIsModalOpen(true);
@@ -121,6 +258,10 @@ function App() {
           ? formValues.reminderCreatedAt || now
           : null,
       reminderLastDismissedAt: formValues.reminderLastDismissedAt || null,
+      remoteId: formValues.remoteId || modalBookmark?.remoteId || crypto.randomUUID(),
+      syncStatus: 'pending',
+      lastSyncedAt: null,
+      deletedAt: null,
       updatedAt: now
     };
 
@@ -144,6 +285,7 @@ function App() {
       showToast('Bookmark added.', 'success');
     }
 
+    syncNow();
     closeModal();
   };
 
@@ -168,6 +310,10 @@ function App() {
     const now = new Date();
     const library = {
       name: trimmedName,
+      remoteId: crypto.randomUUID(),
+      syncStatus: 'pending',
+      lastSyncedAt: null,
+      deletedAt: null,
       createdAt: now,
       updatedAt: now
     };
@@ -177,6 +323,7 @@ function App() {
     setLibraries((current) => sortLibraries([...current, savedLibrary]));
     setActiveLibraryId(id);
     showToast('Library created.', 'success');
+    syncNow();
     return id;
   };
 
@@ -189,7 +336,13 @@ function App() {
       sortBookmarks(
         current.map((item) =>
           item.id === bookmark.id
-            ? { ...item, currentChapter: safeChapter, updatedAt }
+            ? {
+                ...item,
+                currentChapter: safeChapter,
+                updatedAt,
+                syncStatus: 'pending',
+                lastSyncedAt: null
+              }
             : item
         )
       )
@@ -198,8 +351,11 @@ function App() {
     try {
       await db.bookmarks.update(bookmark.id, {
         currentChapter: safeChapter,
-        updatedAt
+        updatedAt,
+        syncStatus: 'pending',
+        lastSyncedAt: null
       });
+      syncNow();
     } catch (error) {
       console.error(error);
       setBookmarks(currentSnapshot);
@@ -223,7 +379,11 @@ function App() {
 
   const handleDismissReminder = async (bookmarkId) => {
     const reminderLastDismissedAt = new Date();
-    await db.bookmarks.update(bookmarkId, { reminderLastDismissedAt });
+    await db.bookmarks.update(bookmarkId, {
+      reminderLastDismissedAt,
+      syncStatus: 'pending',
+      lastSyncedAt: null
+    });
     setBookmarks((current) =>
       current.map((bookmark) =>
         bookmark.id === bookmarkId
@@ -232,19 +392,71 @@ function App() {
       )
     );
     showToast('Reminder dismissed.', 'success');
+    syncNow();
   };
 
   const handleImportReplace = async ({ libraries: importedLibraries, bookmarks: importedBookmarks }) => {
     await db.transaction('rw', db.bookmarks, db.libraries, async () => {
       await db.bookmarks.clear();
       await db.libraries.clear();
-      await db.libraries.bulkAdd(importedLibraries);
-      await db.bookmarks.bulkAdd(importedBookmarks);
+      await db.libraries.bulkAdd(
+        importedLibraries.map((library) =>
+          markRecordPending({
+            ...library,
+            remoteId: library.remoteId || crypto.randomUUID(),
+            deletedAt: library.deletedAt || null
+          })
+        )
+      );
+      await db.bookmarks.bulkAdd(
+        importedBookmarks.map((bookmark) =>
+          markRecordPending({
+            ...bookmark,
+            remoteId: bookmark.remoteId || crypto.randomUUID(),
+            deletedAt: bookmark.deletedAt || null
+          })
+        )
+      );
     });
 
     const [libraryRecords] = await Promise.all([loadLibraries(), loadBookmarks()]);
     setActiveLibraryId(libraryRecords[0]?.id || 'all');
     showToast(`Imported ${importedBookmarks.length} bookmark${importedBookmarks.length === 1 ? '' : 's'}.`, 'success');
+    syncNow();
+  };
+
+  const handleSignInForSync = async (email) => {
+    if (!supabase) {
+      showToast('Supabase is not configured yet.', 'error');
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin
+      }
+    });
+
+    if (error) {
+      console.error(error);
+      showToast(error.message, 'error');
+      return;
+    }
+
+    showToast('Check your email for the BIFROST sync sign-in link.', 'success');
+  };
+
+  const handleSignOutOfSync = async () => {
+    if (!supabase) {
+      return;
+    }
+
+    await supabase.auth.signOut();
+    setSession(null);
+    setSyncEnabled(false);
+    setSyncStatus('local-only');
+    setSyncMessage('Signed out. Local data stayed on this device.');
   };
 
   const bookmarkCountLabel = useMemo(() => {
@@ -263,6 +475,22 @@ function App() {
           libraries={libraries}
           onImportReplace={handleImportReplace}
           onToast={showToast}
+        />
+        <SyncPanel
+          isConfigured={isSupabaseConfigured}
+          session={session}
+          syncEnabled={syncEnabled}
+          syncStatus={syncStatus}
+          syncMessage={syncMessage}
+          onSignIn={handleSignInForSync}
+          onSignOut={handleSignOutOfSync}
+          onSyncNow={() => syncNow()}
+          onEnableSync={() => setSyncEnabled(true)}
+          onDisableSync={() => {
+            setSyncEnabled(false);
+            setSyncStatus('local-only');
+            setSyncMessage('Sync paused. Local data remains available.');
+          }}
         />
         <Notifications
           bookmarks={bookmarks}

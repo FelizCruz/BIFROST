@@ -115,13 +115,15 @@ svg {
 }
 
 .settings,
-.notifications {
+.notifications,
+.sync-panel {
   position: relative;
   flex: 0 0 auto;
 }
 
 .settings-button,
 .notifications-button,
+.sync-button,
 .close-button {
   display: inline-grid;
   place-items: center;
@@ -136,6 +138,23 @@ svg {
 
 .notifications-button {
   position: relative;
+}
+
+.sync-button svg {
+  color: var(--muted);
+}
+
+.sync-synced svg {
+  color: var(--success);
+}
+
+.sync-syncing svg,
+.sync-offline-pending svg {
+  color: var(--warning);
+}
+
+.sync-sync-error svg {
+  color: var(--danger);
 }
 
 .notification-badge {
@@ -191,6 +210,68 @@ svg {
   border-radius: var(--radius);
   background: #252538;
   box-shadow: var(--shadow);
+}
+
+.sync-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 12px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #252538;
+  box-shadow: var(--shadow);
+}
+
+.sync-menu h2,
+.sync-menu p {
+  margin: 0;
+}
+
+.sync-menu h2 {
+  font-size: 1rem;
+}
+
+.sync-menu p,
+.sync-help,
+.sync-account {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.sync-actions,
+.sync-form {
+  display: grid;
+  gap: 10px;
+}
+
+.sync-actions button,
+.sync-form button {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.sync-form label {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.sync-form input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #191927;
+  color: var(--text);
 }
 
 .notifications-menu header {
