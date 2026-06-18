@@ -343,7 +343,7 @@ function Settings({ bookmarks, libraries, onImportReplace, onToast }) {
 
               <p>
                 The `template=auto` flag lets BIFROST detect chapter numbers
-                from the shared URL and convert them into `{chapter}` templates.
+                from the shared URL and convert them into {'{chapter}'} templates.
               </p>
 
               <div className="modal-actions">
