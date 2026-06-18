@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BIFROST Clipper</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header>
+        <img src="icons/icon-192.png" alt="" />
+        <div>
+          <h1>BIFROST</h1>
+          <p>Clip current page</p>
+        </div>
+      </header>
+
+      <form id="clip-form">
+        <label>
+          <span>Title</span>
+          <input id="title" name="title" type="text" required />
+        </label>
+
+        <label>
+          <span>Base URL</span>
+          <input id="baseUrl" name="baseUrl" type="text" required />
+        </label>
+
+        <label>
+          <span>Current Chapter</span>
+          <input
+            id="currentChapter"
+            name="currentChapter"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="numeric"
+            required
+          />
+        </label>
+
+        <label>
+          <span>BIFROST URL</span>
+          <input id="appUrl" name="appUrl" type="url" required />
+        </label>
+
+        <p id="status" role="status"></p>
+
+        <div class="actions">
+          <button id="reset-url" type="button">Reset URL</button>
+          <button class="primary" type="submit">Add</button>
+        </div>
+      </form>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

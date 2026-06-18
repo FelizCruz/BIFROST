@@ -23,7 +23,15 @@ const readImageAsDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
-function AddEditModal({ isOpen, bookmark, libraries, activeLibraryId, onClose, onSave }) {
+function AddEditModal({
+  isOpen,
+  bookmark,
+  libraries,
+  activeLibraryId,
+  initialValues,
+  onClose,
+  onSave
+}) {
   const titleInputRef = useRef(null);
   const modalRef = useRef(null);
   const [form, setForm] = useState(emptyForm);
@@ -56,8 +64,10 @@ function AddEditModal({ isOpen, bookmark, libraries, activeLibraryId, onClose, o
           }
         : {
             ...emptyForm,
+            ...initialValues,
             libraryId: String(
-              activeLibraryId === 'all' ? libraries[0]?.id || '' : activeLibraryId
+              initialValues?.libraryId ||
+                (activeLibraryId === 'all' ? libraries[0]?.id || '' : activeLibraryId)
             )
           }
     );
@@ -67,7 +77,7 @@ function AddEditModal({ isOpen, bookmark, libraries, activeLibraryId, onClose, o
     window.setTimeout(() => {
       titleInputRef.current?.focus();
     }, 0);
-  }, [activeLibraryId, bookmark, isOpen, libraries]);
+  }, [activeLibraryId, bookmark, initialValues, isOpen, libraries]);
 
   useEffect(() => {
     if (!isOpen) {

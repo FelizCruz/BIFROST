@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db } from './db/dexie.js';
 import Dashboard from './components/Dashboard.jsx';
 import AddEditModal from './components/AddEditModal.jsx';
@@ -13,11 +13,48 @@ const sortLibraries = (items) =>
   [...items].sort((a, b) => a.name.localeCompare(b.name));
 
 const DEFAULT_LIBRARY_NAME = 'Light Novels';
+const CHAPTER_NUMBER_PATTERN = /(?:chapter|ch)[\s._/-]*(\d+)/i;
 const initialLibrary = {
   id: 1,
   name: DEFAULT_LIBRARY_NAME,
   createdAt: new Date(),
   updatedAt: new Date()
+};
+
+const getAddRequestFromUrl = (libraries) => {
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get('add') !== '1') {
+    return null;
+  }
+
+  const title = (params.get('title') || '').trim();
+  const baseUrl = (params.get('baseUrl') || params.get('url') || '').trim();
+
+  if (!baseUrl) {
+    return null;
+  }
+
+  const currentChapterParam = Number(params.get('currentChapter'));
+  const detectedChapter = baseUrl.match(CHAPTER_NUMBER_PATTERN);
+  const currentChapter = Number.isInteger(currentChapterParam) && currentChapterParam >= 1
+    ? currentChapterParam
+    : detectedChapter
+      ? Number(detectedChapter[1])
+      : 1;
+
+  return {
+    title,
+    baseUrl,
+    currentChapter: String(Math.max(1, currentChapter)),
+    category: (params.get('category') || 'Reading').trim() || 'Reading',
+    libraryId: String(libraries[0]?.id || ''),
+    totalChapters: '',
+    coverImage: null,
+    reminderCadence: 'none',
+    reminderCreatedAt: null,
+    reminderLastDismissedAt: null
+  };
 };
 
 const ensureDefaultLibrary = async () => {
@@ -48,8 +85,10 @@ function App() {
   const [activeLibraryId, setActiveLibraryId] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [modalBookmark, setModalBookmark] = useState(null);
+  const [modalInitialValues, setModalInitialValues] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const hasConsumedAddRequestRef = useRef(false);
 
   const showToast = useCallback((message, type = 'info') => {
     setToast({ id: crypto.randomUUID(), message, type });
@@ -95,19 +134,40 @@ function App() {
     };
   }, [showToast]);
 
+  useEffect(() => {
+    if (hasConsumedAddRequestRef.current || !libraries.length) {
+      return;
+    }
+
+    const addRequest = getAddRequestFromUrl(libraries);
+
+    if (!addRequest) {
+      return;
+    }
+
+    hasConsumedAddRequestRef.current = true;
+    setModalBookmark(null);
+    setModalInitialValues(addRequest);
+    setIsModalOpen(true);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }, [libraries]);
+
   const openAddModal = () => {
     setModalBookmark(null);
+    setModalInitialValues(null);
     setIsModalOpen(true);
   };
 
   const openEditModal = (bookmark) => {
     setModalBookmark(bookmark);
+    setModalInitialValues(null);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setModalBookmark(null);
+    setModalInitialValues(null);
   };
 
   const handleSaveBookmark = async (formValues) => {
@@ -307,6 +367,7 @@ function App() {
         bookmark={modalBookmark}
         libraries={libraries}
         activeLibraryId={activeLibraryId}
+        initialValues={modalInitialValues}
         onClose={closeModal}
         onSave={handleSaveBookmark}
       />
