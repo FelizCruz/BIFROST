@@ -47,6 +47,25 @@ To test locally:
 3. Choose "Load unpacked".
 4. Select `extensions/browser`.
 
+## iOS Shortcut
+
+iOS does not support Chrome-style unpacked extensions. Use an Apple Shortcut
+from the Safari Share Sheet instead:
+
+1. Create a shortcut named `Add to BIFROST`.
+2. Enable `Show in Share Sheet`.
+3. Accept Safari webpages and URLs.
+4. Get the shared page title and URL.
+5. URL encode both values.
+6. Open this URL format:
+
+```text
+https://bifrost-rho-seven.vercel.app/?add=1&template=auto&title=[Encoded Title]&url=[Encoded URL]
+```
+
+`template=auto` lets BIFROST detect common chapter URL patterns and convert the
+shared page URL into a `{chapter}` template before the Add modal opens.
+
 ## Data
 
 BIFROST is local-first. Bookmarks, libraries, covers, and reminders are stored

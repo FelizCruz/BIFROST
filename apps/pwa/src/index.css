@@ -632,7 +632,8 @@ svg {
 }
 
 .bookmark-form input,
-.bookmark-form select {
+.bookmark-form select,
+.shortcut-guide textarea {
   width: 100%;
   min-height: 48px;
   padding: 0 12px;
@@ -640,6 +641,41 @@ svg {
   border-radius: var(--radius);
   background: #191927;
   color: var(--text);
+}
+
+.shortcut-guide {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.shortcut-guide p,
+.shortcut-guide ol {
+  margin: 0;
+  color: var(--muted);
+}
+
+.shortcut-guide ol {
+  display: grid;
+  gap: 8px;
+  padding-left: 22px;
+}
+
+.shortcut-guide label {
+  display: grid;
+  gap: 8px;
+}
+
+.shortcut-guide label span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.shortcut-guide textarea {
+  min-height: 112px;
+  padding: 12px;
+  resize: vertical;
 }
 
 .cover-field {

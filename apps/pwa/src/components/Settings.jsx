@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 
+const shortcutBaseUrl = 'https://bifrost-rho-seven.vercel.app/?add=1&template=auto&title=[Encoded Title]&url=[Encoded URL]';
+
 const serializeBookmark = (bookmark) => ({
   id: bookmark.id,
   title: bookmark.title,
@@ -183,6 +185,7 @@ const normalizeImportedData = (payload) => {
 
 function Settings({ bookmarks, libraries, onImportReplace, onToast }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isShortcutGuideOpen, setIsShortcutGuideOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   const exportBookmarks = () => {
@@ -211,6 +214,21 @@ function Settings({ bookmarks, libraries, onImportReplace, onToast }) {
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const openShortcutGuide = () => {
+    setIsOpen(false);
+    setIsShortcutGuideOpen(true);
+  };
+
+  const copyShortcutFormat = async () => {
+    try {
+      await navigator.clipboard.writeText(shortcutBaseUrl);
+      onToast('Shortcut URL format copied.', 'success');
+    } catch (error) {
+      console.error(error);
+      onToast('Could not copy shortcut URL format.', 'error');
+    }
   };
 
   const handleImportFile = async (event) => {
@@ -264,6 +282,9 @@ function Settings({ bookmarks, libraries, onImportReplace, onToast }) {
           <button type="button" onClick={handleImportClick}>
             Import JSON
           </button>
+          <button type="button" onClick={openShortcutGuide}>
+            iOS Shortcut
+          </button>
         </div>
       )}
 
@@ -274,6 +295,77 @@ function Settings({ bookmarks, libraries, onImportReplace, onToast }) {
         accept="application/json,.json"
         onChange={handleImportFile}
       />
+
+      {isShortcutGuideOpen && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={() => setIsShortcutGuideOpen(false)}
+        >
+          <section
+            className="modal-panel shortcut-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shortcut-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="modal-header">
+              <h2 id="shortcut-title">iOS Shortcut</h2>
+              <button
+                className="close-button"
+                type="button"
+                onClick={() => setIsShortcutGuideOpen(false)}
+                aria-label="Close shortcut guide"
+              >
+                x
+              </button>
+            </header>
+
+            <div className="shortcut-guide">
+              <p>
+                Create a Share Sheet shortcut named Add to BIFROST. It should
+                receive Safari webpages and URLs, then open BIFROST with the
+                shared page details.
+              </p>
+
+              <ol>
+                <li>Open Shortcuts and create a new shortcut.</li>
+                <li>Enable Show in Share Sheet.</li>
+                <li>Set accepted input to Safari webpages and URLs.</li>
+                <li>Get the page URL and page name from Shortcut Input.</li>
+                <li>URL Encode the page URL and page name.</li>
+                <li>Open the BIFROST URL format below.</li>
+              </ol>
+
+              <label>
+                <span>URL format</span>
+                <textarea readOnly value={shortcutBaseUrl} rows="4" />
+              </label>
+
+              <p>
+                The `template=auto` flag lets BIFROST detect chapter numbers
+                from the shared URL and convert them into `{chapter}` templates.
+              </p>
+
+              <div className="modal-actions">
+                <button
+                  className="secondary-action"
+                  type="button"
+                  onClick={() => setIsShortcutGuideOpen(false)}
+                >
+                  Close
+                </button>
+                <button
+                  className="primary-action"
+                  type="button"
+                  onClick={copyShortcutFormat}
+                >
+                  Copy format
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

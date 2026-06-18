@@ -13,12 +13,43 @@ const sortLibraries = (items) =>
   [...items].sort((a, b) => a.name.localeCompare(b.name));
 
 const DEFAULT_LIBRARY_NAME = 'Light Novels';
-const CHAPTER_NUMBER_PATTERN = /(?:chapter|ch)[\s._/-]*(\d+)/i;
+const CHAPTER_PATTERNS = [
+  /((?:chapter|ch)[\s._/-]*)(\d+)/i,
+  /([?&](?:chapter|ch)=)(\d+)/i,
+  /(\/)(\d+)(?:\/?$)/
+];
 const initialLibrary = {
   id: 1,
   name: DEFAULT_LIBRARY_NAME,
   createdAt: new Date(),
   updatedAt: new Date()
+};
+
+const getFallbackTitle = (url) => {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.hostname.replace(/^www\./, '') || 'Untitled bookmark';
+  } catch {
+    return 'Untitled bookmark';
+  }
+};
+
+const getChapterTemplate = (url) => {
+  for (const pattern of CHAPTER_PATTERNS) {
+    const match = url.match(pattern);
+
+    if (match) {
+      return {
+        baseUrl: url.replace(pattern, `${match[1]}{chapter}`),
+        currentChapter: Number(match[2])
+      };
+    }
+  }
+
+  return {
+    baseUrl: url,
+    currentChapter: 1
+  };
 };
 
 const getAddRequestFromUrl = (libraries) => {
@@ -28,24 +59,25 @@ const getAddRequestFromUrl = (libraries) => {
     return null;
   }
 
-  const title = (params.get('title') || '').trim();
-  const baseUrl = (params.get('baseUrl') || params.get('url') || '').trim();
+  const rawUrl = (params.get('baseUrl') || params.get('url') || '').trim();
+  const title = (params.get('title') || '').trim() || getFallbackTitle(rawUrl);
+  const shouldInferTemplate = params.get('template') === 'auto';
+  const template = shouldInferTemplate
+    ? getChapterTemplate(rawUrl)
+    : { baseUrl: rawUrl, currentChapter: 1 };
 
-  if (!baseUrl) {
+  if (!rawUrl) {
     return null;
   }
 
   const currentChapterParam = Number(params.get('currentChapter'));
-  const detectedChapter = baseUrl.match(CHAPTER_NUMBER_PATTERN);
   const currentChapter = Number.isInteger(currentChapterParam) && currentChapterParam >= 1
     ? currentChapterParam
-    : detectedChapter
-      ? Number(detectedChapter[1])
-      : 1;
+    : template.currentChapter;
 
   return {
     title,
-    baseUrl,
+    baseUrl: template.baseUrl,
     currentChapter: String(Math.max(1, currentChapter)),
     category: (params.get('category') || 'Reading').trim() || 'Reading',
     libraryId: String(libraries[0]?.id || ''),
