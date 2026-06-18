@@ -35,6 +35,9 @@ create index if not exists libraries_user_updated_idx
 create index if not exists bookmarks_user_library_updated_idx
   on public.bookmarks (user_id, library_id, updated_at desc);
 
+create index if not exists bookmarks_library_idx
+  on public.bookmarks (library_id);
+
 alter table public.libraries enable row level security;
 alter table public.bookmarks enable row level security;
 
@@ -87,4 +90,19 @@ create policy "Users read covers"
   on storage.objects
   for select
   to authenticated
-  using (bucket_id = 'covers');
+  using (
+    bucket_id = 'covers'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'rls_auto_enable'
+  ) then
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end $$;
