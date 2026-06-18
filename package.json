@@ -10,12 +10,10 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
-    "@supabase/supabase-js": "^2.86.2",
     "dexie": "^4.0.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "vite": "^6.0.7",
     "vite-plugin-pwa": "^0.21.1"
-  },
-  "devDependencies": {}
+  }
 }

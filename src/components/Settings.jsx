@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 
 const serializeBookmark = (bookmark) => ({
   id: bookmark.id,
-  remoteId: bookmark.remoteId || null,
   title: bookmark.title,
   baseUrl: bookmark.baseUrl,
   currentChapter: bookmark.currentChapter,
@@ -10,12 +9,6 @@ const serializeBookmark = (bookmark) => ({
   category: bookmark.category,
   libraryId: bookmark.libraryId,
   coverImage: bookmark.coverImage || null,
-  coverPath: bookmark.coverPath || null,
-  syncStatus: bookmark.syncStatus || 'pending',
-  lastSyncedAt: bookmark.lastSyncedAt
-    ? new Date(bookmark.lastSyncedAt).toISOString()
-    : null,
-  deletedAt: bookmark.deletedAt ? new Date(bookmark.deletedAt).toISOString() : null,
   reminderCadence: bookmark.reminderCadence || 'none',
   reminderCreatedAt: bookmark.reminderCreatedAt
     ? new Date(bookmark.reminderCreatedAt).toISOString()
@@ -29,13 +22,7 @@ const serializeBookmark = (bookmark) => ({
 
 const serializeLibrary = (library) => ({
   id: library.id,
-  remoteId: library.remoteId || null,
   name: library.name,
-  syncStatus: library.syncStatus || 'pending',
-  lastSyncedAt: library.lastSyncedAt
-    ? new Date(library.lastSyncedAt).toISOString()
-    : null,
-  deletedAt: library.deletedAt ? new Date(library.deletedAt).toISOString() : null,
   createdAt: new Date(library.createdAt).toISOString(),
   updatedAt: new Date(library.updatedAt).toISOString()
 });
@@ -84,19 +71,7 @@ const normalizeImportedData = (payload) => {
 
     return {
       id,
-      remoteId:
-        typeof library.remoteId === 'string' && library.remoteId
-          ? library.remoteId
-          : crypto.randomUUID(),
       name,
-      syncStatus: 'pending',
-      lastSyncedAt: null,
-      deletedAt:
-        library.deletedAt === null ||
-        library.deletedAt === undefined ||
-        library.deletedAt === ''
-          ? null
-          : parseDate(library.deletedAt, 'deletedAt', index),
       createdAt: parseDate(library.createdAt, 'createdAt', index),
       updatedAt: parseDate(library.updatedAt, 'updatedAt', index)
     };
@@ -129,10 +104,6 @@ const normalizeImportedData = (payload) => {
       record.coverImage === null || record.coverImage === undefined || record.coverImage === ''
         ? null
         : record.coverImage;
-    const coverPath =
-      record.coverPath === null || record.coverPath === undefined || record.coverPath === ''
-        ? null
-        : record.coverPath;
     const reminderCadence = record.reminderCadence || 'none';
     const reminderCreatedAt =
       record.reminderCreatedAt === null ||
@@ -176,19 +147,11 @@ const normalizeImportedData = (payload) => {
       throw new Error(`Bookmark ${index + 1} has an invalid coverImage value.`);
     }
 
-    if (coverPath !== null && typeof coverPath !== 'string') {
-      throw new Error(`Bookmark ${index + 1} has an invalid coverPath value.`);
-    }
-
     if (!['none', 'daily', 'weekly', 'monthly'].includes(reminderCadence)) {
       throw new Error(`Bookmark ${index + 1} has an invalid reminder cadence.`);
     }
 
     const normalized = {
-      remoteId:
-        typeof record.remoteId === 'string' && record.remoteId
-          ? record.remoteId
-          : crypto.randomUUID(),
       title,
       baseUrl,
       currentChapter,
@@ -196,18 +159,9 @@ const normalizeImportedData = (payload) => {
       category,
       libraryId,
       coverImage,
-      coverPath,
       reminderCadence,
       reminderCreatedAt,
       reminderLastDismissedAt,
-      syncStatus: 'pending',
-      lastSyncedAt: null,
-      deletedAt:
-        record.deletedAt === null ||
-        record.deletedAt === undefined ||
-        record.deletedAt === ''
-          ? null
-          : parseDate(record.deletedAt, 'deletedAt', index),
       createdAt: parseDate(record.createdAt, 'createdAt', index),
       updatedAt: parseDate(record.updatedAt, 'updatedAt', index)
     };

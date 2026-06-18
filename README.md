@@ -10,7 +10,6 @@ BIFROST is a mobile-first PWA for tracking serialized online content such as web
 - Upload local cover images for bookmarks.
 - Set optional in-app reminders.
 - Export and import local JSON backups.
-- Optional Supabase sync across devices.
 - Offline-ready PWA shell after the first visit.
 
 ## Run Locally
@@ -28,22 +27,11 @@ Open `http://localhost:5173/`.
 npm.cmd run build
 ```
 
-## Optional Sync
+## Data
 
-BIFROST works without an account. Supabase is only required for users who want
-cross-device sync.
+BIFROST is local-first. Bookmarks, libraries, covers, and reminders are stored
+in the browser with IndexedDB/Dexie. Use settings export/import to move data
+between devices or keep manual backups.
 
-1. Create a Supabase project.
-2. Run `supabase/schema.sql` in the Supabase SQL editor.
-3. Copy `.env.example` to `.env.local`.
-4. Fill in:
-
-```text
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_PUBLISHABLE_KEY=...
-```
-
-5. Restart the dev server.
-
-For Vercel, add the same environment variables to the project settings. The
-sync UI will stay in local-only mode until these variables are configured.
+The previous optional Supabase sync implementation is preserved on the
+`supabase-sync` branch.
